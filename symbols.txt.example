@@ -1,0 +1,9 @@
+# Copy to symbols.txt and put one six-digit A-share code per line.
+# Deliberately not shipped with a real list: pick your own sample so the
+# numbers you publish are yours and not a copy of someone else's run.
+#
+# A reasonable sample spans all three prefixes, because coverage and
+# adjustment behaviour differ by board:
+#   60xxxx / 68xxxx  Shanghai (main board / STAR)
+#   00xxxx / 30xxxx  Shenzhen (main board / ChiNext)
+#   43xxxx / 83xxxx / 87xxxx  Beijing
