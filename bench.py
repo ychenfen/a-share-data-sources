@@ -9,6 +9,7 @@ import argparse, json, os, platform, random, subprocess, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
 import requests
 
 from sources import src_akshare, src_eastmoney, src_sina, src_tushare
@@ -41,12 +42,12 @@ def guard_proxy(allow: bool) -> None:
 def make_session(allow_proxy: bool) -> requests.Session:
     s = requests.Session()
     s.trust_env = allow_proxy          # ignore *_proxy and .netrc when False
-    s.headers["User-Agent"] = "a-share-data-sources/0.1 (+github.com/<you>)"
+    s.headers["User-Agent"] = "a-share-data-sources/0.1 (+https://github.com/ychenfen/a-share-data-sources)"
     return s
 
 
 def load_symbols(path: str, k: int, seed: int) -> list[str]:
-    codes = [ln.strip() for ln in Path(path).read_text().splitlines()
+    codes = [ln.strip() for ln in Path(path).read_text(encoding="utf-8").splitlines()
              if ln.strip() and not ln.startswith("#")]
     if not codes:
         sys.exit(f"{path} is empty. Add one six-digit code per line.")
@@ -68,18 +69,56 @@ def provenance(args) -> dict:
         "proxy_allowed": args.allow_proxy,
         "symbols_n": args.n_symbols,
         "seed": args.seed,
+        "adjust": args.adjust,
         "window": f"{args.start}..{args.end}",
     }
 
 
+def _df_to_markdown(df: pd.DataFrame) -> str:
+    if df is None or df.empty:
+        return "_(no rows)_"
+    cols = list(df.columns)
+    header = "| " + " | ".join(str(c) for c in cols) + " |"
+    sep = "| " + " | ".join("---" for _ in cols) + " |"
+    body = [
+        "| " + " | ".join("" if pd.isna(v) else str(v) for v in row) + " |"
+        for row in df.itertuples(index=False, name=None)
+    ]
+    return "\n".join([header, sep, *body])
+
+
+def write_summary(path: Path, meta: dict, tables: dict[str, pd.DataFrame]) -> None:
+    lines = [
+        "# Benchmark Summary",
+        "",
+        "## Provenance",
+        "",
+        f"- **Generated (UTC)**: `{meta.get('generated_at_utc')}`",
+        f"- **Git Commit**: `{meta.get('git_commit')}`",
+        f"- **Platform / Python**: `{meta.get('platform')}` / `{meta.get('python')}`",
+        f"- **Window**: `{meta.get('window')}` (adjust=`{meta.get('adjust')!r}`)",
+        f"- **Sample Size**: `{meta.get('symbols_n')}` symbols (seed=`{meta.get('seed')}`)",
+        f"- **Proxy Allowed**: `{meta.get('proxy_allowed')}`",
+        "",
+    ]
+    for section, df in tables.items():
+        lines.append(f"## {section.replace('_', ' ').title()}")
+        lines.append("")
+        lines.append(_df_to_markdown(df))
+        lines.append("")
+    path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
 def main() -> None:
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--sources", default="akshare,eastmoney,sina")
     p.add_argument("--symbols-file", default=os.environ.get("BENCH_SYMBOLS_FILE", "symbols.txt"))
     p.add_argument("--n-symbols", type=int, default=12)
     p.add_argument("--seed", type=int, default=20260801)
     p.add_argument("--start", default=os.environ.get("BENCH_START", "20230101"))
     p.add_argument("--end",   default=os.environ.get("BENCH_END",   "20241231"))
+    p.add_argument("--adjust", default="hfq", choices=["hfq", "qfq", ""],
+                   help="Price adjustment convention (default: hfq)")
     p.add_argument("--repeats", type=int, default=10)
     p.add_argument("--sleep", type=float, default=1.5)
     p.add_argument("--probe-limits", action="store_true",
@@ -117,7 +156,7 @@ def main() -> None:
 
     for name, df in tables.items():
         df.to_csv(out / f"{name}.csv", index=False)
-    (out / "run_meta.json").write_text(json.dumps(meta, indent=2))
+    (out / "run_meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     write_summary(out / "summary.md", meta, tables)   # renders the README table
     print(f"wrote {out/'summary.md'}")
 

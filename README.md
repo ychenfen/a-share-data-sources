@@ -1,5 +1,17 @@
 # A-Share Market Data Sources, Compared and Benchmarked
 
+<p align="left">
+  <a href="README.md"><strong>English</strong></a> ·
+  <a href="README_CN.md">简体中文</a>
+</p>
+
+<p align="left">
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="Code License: MIT" />
+  <img src="https://img.shields.io/badge/docs-CC%20BY%204.0-lightgrey.svg" alt="Docs License: CC BY 4.0" />
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="Python 3.10+" />
+  <img src="https://img.shields.io/badge/sources-akshare%20%7C%20tushare%20%7C%20eastmoney%20%7C%20sina-10A37F.svg" alt="Data Sources" />
+</p>
+
 Four commonly used ways to pull Chinese A-share OHLCV data — **akshare**, **tushare pro**, **eastmoney push2his**, and **sina finance** — measured on the same symbols, the same date range, and the same machine.
 
 This repository does not host market data. It hosts a measurement script and the tables it produces, so you can re-run the numbers on your own network instead of trusting mine.
@@ -58,10 +70,11 @@ None of these is correct in general. Backward adjustment is the reproducible cho
 ## Quick start
 
 ```bash
-git clone https://github.com/<you>/a-share-data-sources.git
+git clone https://github.com/ychenfen/a-share-data-sources.git
 cd a-share-data-sources
 pip install -r requirements.txt
-cp .env.example .env      # then edit .env
+cp .env.example .env            # then edit .env
+cp symbols.txt.example symbols.txt
 ```
 
 `.env`:
@@ -83,6 +96,12 @@ Run it:
 ```bash
 python bench.py --sources akshare,eastmoney,sina --out results/
 python bench.py --sources tushare --out results/     # needs TUSHARE_TOKEN
+```
+
+Run offline unit tests:
+
+```bash
+pytest -q
 ```
 
 ### Minimal per-source calls
@@ -163,10 +182,10 @@ Five dimensions, each with its own module. See [`docs/methodology.md`](docs/meth
 
 | Dimension | Question it answers | Output |
 |---|---|---|
-| Latency | how long one daily-bar request takes, p50 / p95 | `results/latency.csv` |
+| Latency | how long one daily-bar request takes, p50 / p90 | `results/latency.csv` |
 | Reliability | success rate over N sequential requests, counting empty-but-200 as failure | `results/reliability.csv` |
 | Rate ceiling | at what concurrency the source stops answering (opt-in, off by default) | `results/rate_limits.csv` |
-| Coverage | earliest bar available, trading-day count, missing days vs the exchange calendar | `results/coverage.csv` |
+| Coverage | earliest bar available, trading-day count, silent start truncation | `results/coverage.csv` |
 | Agreement | pairwise close-price mismatch between sources, plus whether the disagreement is explained by a different adjustment convention or by the data itself differing | `results/agreement.csv` |
 
 All five are merged into `results/summary.md`, which is what the comparison table above is generated from.
@@ -195,13 +214,25 @@ Useful contributions, roughly in order of value: a result set from outside mainl
 
 Please do not commit market data files. Aggregate measurements only.
 
+## Citation
+
+```bibtex
+@software{xu2026asharedatasources,
+  author       = {Xu, Yuchen},
+  title        = {a-share-data-sources: Empirical Benchmark of Chinese A-Share Market Data Sources},
+  year         = {2026},
+  publisher    = {GitHub},
+  url          = {https://github.com/ychenfen/a-share-data-sources}
+}
+```
+
 ## License
 
-Code is MIT. Measurement outputs under `results/` and documentation are CC BY 4.0 — reuse them, with attribution back to this repository.
+Code is [MIT](LICENSE). Measurement outputs under `results/` and documentation are [CC BY 4.0](LICENSE-docs) — reuse them, with attribution back to this repository.
 
 ---
 
-## 中文摘要
+## 中文摘要（完整版见 [README_CN.md](README_CN.md)）
 
 这个仓库比较四种取 A 股行情数据的方式：akshare、tushare pro、东方财富 push2his 接口、新浪财经接口。同样的股票池、同样的时间区间、同一台机器，测延迟、成功率、并发上限、覆盖范围，以及四个源之间的收盘价一致性。
 
